@@ -12,7 +12,7 @@ LOG_PATH = "/Users/k_yang/Documents/test_log.csv"
 
 SSD_SIZE = 20
 DW_BLOCK_SIZE = 8 #8 MiB
-NUM_NODES = 1
+NUM_NODES = 4
 HASWELL_KNL = "haswell"
 MAX_TASKS_PER = 32 if HASWELL_KNL == "haswell" else 272
 CPUS_PER = 2 if HASWELL_KNL == "haswell" else 4
@@ -27,7 +27,7 @@ def generateIOR(configs):
                       HASWELL_KNL,
                       str(configs["capacity"] * SSD_SIZE) + "GiB",
                       str(configs["transfer_size"]) + "M",
-                      str(configs["block_size"]) + "G")
+                      str(configs["block_size"]) + "M")
     with open(SBATCH_NEW_SCRIPT_PATH, 'w+') as destination:
         destination.write(text)
 
@@ -41,20 +41,17 @@ def jitter(configs, key):
     new_val = configs[key]
     total_tasks = configs["num_tasks_per_node"] * NUM_NODES
     loop_count = 0
-    while configs[key] == new_val and loop_count < 5:
+    while configs[key] == new_val and loop_count < 3:
         if key == "num_tasks_per_node":
-            max_constraint = math.floor((configs["capacity"] * SSD_SIZE) / (configs["block_size"] * NUM_NODES))
+            max_constraint = math.floor((configs["capacity"] * SSD_SIZE) / ((configs["block_size"] / 1024) * NUM_NODES))
             min_of_max = min(MAX_TASKS_PER, max_constraint)
-            if (abs(new_val - min_of_max)) <= 1:
-                return new_val
-            new_val = random.choice(range(1, min_of_max))
+            new_val = random.choice(range(1, min_of_max + 1))
         elif key == "capacity":
-            new_val = random.choice(range(int(math.ceil((total_tasks * configs["block_size"]) / SSD_SIZE)), NUM_NODES * MAX_TASKS_PER))
+            new_val = random.choice(range(int(math.ceil((total_tasks * (configs["block_size"] / 1024)) / SSD_SIZE)), NUM_NODES * MAX_TASKS_PER))
         elif key == "transfer_size":
-            block_size_MIB = int(configs["block_size"] * 1024)
-            possible_transfer_size = list(range(1, block_size_MIB))
+            possible_transfer_size = list(range(1, configs["block_size"]))
             new_val = random.choice(possible_transfer_size)
-            while block_size_MIB % new_val != 0:
+            while configs["block_size"] % new_val != 0:
                 new_val = random.choice(possible_transfer_size)
         else:
             #Following branches make sure that block size is a multiple of DW_BLOCK_SIZE and transfer_size
@@ -67,7 +64,6 @@ def jitter(configs, key):
                 new_val = random.randrange(1, largest_trans_multiple // 4 + 1) * configs["transfer_size"] * 4
             else:
                 new_val = random.randrange(1, largest_trans_multiple // 8 + 1) * configs["transfer_size"] * 8
-            new_val /= 1024.0
         loop_count += 1
     return new_val
 
@@ -98,7 +94,7 @@ def logData(configs, slurm_data):
                 1 if HASWELL_KNL == "haswell" else 0,
                 configs["capacity"] * SSD_SIZE,
                 configs["transfer_size"],
-                configs["block_size"] * 1024,
+                configs["block_size"],
                 CPUS_PER,
                 slurm_data[0],
                 slurm_data[1],
@@ -132,6 +128,13 @@ def simulatedAnneal(alpha, configs):
         print("speed = " + str(curr_speed), "temp = " + str(temp))
 
     return curr_speed, configs
+
+if __name__ == "__main__":
+    initial_configs = {"num_tasks_per_node" : 8,
+          "capacity" : 12,
+          "transfer_size" : 8,
+          "block_size" : 1}
+    simulatedAnneal(0.99999, initial_configs)
 
 
 

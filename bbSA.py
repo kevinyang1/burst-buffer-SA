@@ -90,7 +90,6 @@ def getSpeed(configs):
     logData(configs, collected_data)
 
     return float(collected_data[0]) + float(collected_data[1])
-    # TODO: Save data and corresponding configurations as csv
 
 def logData(configs, slurm_data):
     log_data = [NUM_NODES,
@@ -123,13 +122,14 @@ def simulatedAnneal(alpha, configs):
     while num_iterations_stuck < 30 and temp > 0.00001:
         new_config = neighbor(configs)
         new_speed = getSpeed(new_config)
-        if new_speed > curr_speed:
+        if (new_speed > curr_speed) or math.exp((new_speed - curr_speed) / temp) > random.random():
             configs = new_config
             curr_speed = new_speed
-        elif math.exp((new_speed - curr_speed) / temp) > random.random():
-            configs = new_config
-            curr_speed = new_speed
+            num_iterations_stuck = 0
+        else:
+            num_iterations_stuck += 1
         temp *= alpha
+        print("speed = " + str(curr_speed), "temp = " + str(temp))
 
     return curr_speed, configs
 

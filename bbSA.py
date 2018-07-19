@@ -6,9 +6,9 @@ import csv
 
 
 SBATCH_PATH = "/global/homes/k/k_yang/ior/src"
-SBATCH_TEMPLATE_PATH = "/Users/k_yang/Documents/IORtemplate.txt"
-SBATCH_NEW_SCRIPT_PATH = "/Users/k_yang/Documents/newIOR.sbatch"
-LOG_PATH = "/Users/k_yang/Documents/test_log.csv"
+SBATCH_TEMPLATE_PATH = SBATCH_PATH + "IORtemplate.txt"
+SBATCH_NEW_SCRIPT_PATH = SBATCH_PATH + "newIOR.sbatch"
+LOG_PATH = SBATCH_PATH + "test_log.csv"
 
 SSD_SIZE = 20
 DW_BLOCK_SIZE = 8 #8 MiB
@@ -16,7 +16,7 @@ NUM_NODES = 4
 HASWELL_KNL = "haswell"
 MAX_TASKS_PER = 32 if HASWELL_KNL == "haswell" else 272
 CPUS_PER = 2 if HASWELL_KNL == "haswell" else 4
-DATA_INDICES = [2, 27, 6, 31]
+DATA_INDICES = [2, 27, 6, 31, -2]
 
 def generateIOR(configs):
     with open(SBATCH_TEMPLATE_PATH, 'r') as template:
@@ -99,7 +99,8 @@ def logData(configs, slurm_data):
                 slurm_data[0],
                 slurm_data[1],
                 slurm_data[2],
-                slurm_data[3]
+                slurm_data[3],
+                slurm_data[4]
                 ]
     with open(LOG_PATH, 'a', newline='') as logcsv:
         writer = csv.writer(logcsv, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
@@ -115,10 +116,10 @@ def simulatedAnneal(alpha, configs):
     num_iterations_stuck = 0
     curr_speed = getSpeed(configs)
 
-    while num_iterations_stuck < 30 and temp > 0.00001:
+    while num_iterations_stuck < 100 and temp > 0.001:
         new_config = neighbor(configs)
         new_speed = getSpeed(new_config)
-        if (new_speed > curr_speed) or math.exp((new_speed - curr_speed) / temp) > random.random():
+        if (new_speed > curr_speed) or math.exp((new_speed - curr_speed) / 1000 / temp) > random.random():
             configs = new_config
             curr_speed = new_speed
             num_iterations_stuck = 0
@@ -134,7 +135,7 @@ if __name__ == "__main__":
           "capacity" : 12,
           "transfer_size" : 8,
           "block_size" : 1}
-    simulatedAnneal(0.99999, initial_configs)
+    simulatedAnneal(0.999, initial_configs)
 
 
 

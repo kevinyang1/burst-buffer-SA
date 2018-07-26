@@ -17,6 +17,7 @@ HASWELL_KNL = "haswell"
 MAX_TASKS_PER = 32 if HASWELL_KNL == "haswell" else 272
 CPUS_PER = 2 if HASWELL_KNL == "haswell" else 4
 DATA_INDICES = [2, 27, 6, 31, -2]
+PROB_DOUBLE_JITTER = 0.15
 
 def generateIOR(configs):
     with open(SBATCH_TEMPLATE_PATH, 'r') as template:
@@ -35,6 +36,9 @@ def neighbor(configs):
     rand_key = random.choice(list(configs.keys()))
     new_config = configs.copy()
     new_config[rand_key] = jitter(configs, rand_key)
+    if random.random() < PROB_DOUBLE_JITTER:
+        rand_key = random.choice(list(configs.keys()))
+        new_config[rand_key] = jitter(new_config, rand_key)
     return new_config
 
 def jitter(configs, key):
@@ -134,8 +138,8 @@ if __name__ == "__main__":
     initial_configs = {"num_tasks_per_node" : 8,
           "capacity" : 12,
           "transfer_size" : 8,
-          "block_size" : 1}
-    simulatedAnneal(0.999, initial_configs)
+          "block_size" : 1024}
+    simulatedAnneal(0.975, initial_configs)
 
 
 

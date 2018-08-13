@@ -4,6 +4,11 @@ This code runs a simulated annealing algorithm for IOR configuration optimizatio
 
 The algorithm changes four parameters: number of tasks per node, SSD capacity, transfer size, and block size. The number of nodes used is held constant. 
 
+The configurations must have the following properties:
+* capacity (GiB) >= block_size * num_tasks_per_node * num_nodes
+* block_size % transfer_size = 0
+* block_size % 8 = 0
+
 ## Configuration
 
 The code is pretty raw, and using it requires making changes to the code. In bbSA.py, there are a couple things that must be configured.

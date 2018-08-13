@@ -1,23 +1,23 @@
-from __future__ import division
 import subprocess
 import random
 import math
 import csv
 
 
-SBATCH_PATH = "/global/homes/k/k_yang/ior/src"
-SBATCH_TEMPLATE_PATH = SBATCH_PATH + "IORtemplate.txt"
-SBATCH_NEW_SCRIPT_PATH = SBATCH_PATH + "newIOR.sbatch"
-LOG_PATH = SBATCH_PATH + "test_log.csv"
+IOR_PATH = "./ior/src/"
+SBATCH_TEMPLATE_PATH = IOR_PATH + "IORtemplate.txt"
+SBATCH_NEW_SCRIPT_PATH = IOR_PATH + "newIOR.sbatch"
+LOG_PATH = IOR_PATH + "test_log.csv"
 
 SSD_SIZE = 20
-DW_BLOCK_SIZE = 8 #8 MiB
-NUM_NODES = 4
+DW_BLOCK_SIZE = 8
+NUM_NODES = 8
 HASWELL_KNL = "haswell"
 MAX_TASKS_PER = 32 if HASWELL_KNL == "haswell" else 272
 CPUS_PER = 2 if HASWELL_KNL == "haswell" else 4
 DATA_INDICES = [2, 27, 6, 31, -2]
 PROB_DOUBLE_JITTER = 0.15
+
 
 def generateIOR(configs):
     with open(SBATCH_TEMPLATE_PATH, 'r') as template:
@@ -32,6 +32,7 @@ def generateIOR(configs):
     with open(SBATCH_NEW_SCRIPT_PATH, 'w+') as destination:
         destination.write(text)
 
+
 def neighbor(configs):
     rand_key = random.choice(list(configs.keys()))
     new_config = configs.copy()
@@ -40,6 +41,7 @@ def neighbor(configs):
         rand_key = random.choice(list(configs.keys()))
         new_config[rand_key] = jitter(new_config, rand_key)
     return new_config
+
 
 def jitter(configs, key):
     new_val = configs[key]
@@ -53,7 +55,7 @@ def jitter(configs, key):
         elif key == "capacity":
             new_val = random.choice(range(int(math.ceil((total_tasks * (configs["block_size"] / 1024)) / SSD_SIZE)), NUM_NODES * MAX_TASKS_PER))
         elif key == "transfer_size":
-            possible_transfer_size = list(range(1, configs["block_size"]))
+            possible_transfer_size = list(range(1, configs["block_size"] // 4))
             new_val = random.choice(possible_transfer_size)
             while configs["block_size"] % new_val != 0:
                 new_val = random.choice(possible_transfer_size)
@@ -71,7 +73,13 @@ def jitter(configs, key):
         loop_count += 1
     return new_val
 
+
 def getSpeed(configs):
+    """
+    Submits sbatch job, logs data, and gets I/O speed
+    :param configs:
+    :return: aggregate mean read speed and mean write speed
+    """
     generateIOR(configs)
     job_number = subprocess.getoutput("sbatch " + SBATCH_NEW_SCRIPT_PATH).split()[3]
     job_status = subprocess.getoutput("squeue | grep k_yang")
@@ -79,17 +87,23 @@ def getSpeed(configs):
     while job_status:
         job_status = subprocess.getoutput("squeue | grep k_yang")
 
-    with open ("slurm-{0}.out".format(job_number)) as outputfile:
+    with open("slurm-{0}.out".format(job_number)) as outputfile:
         text = outputfile.read()
 
     output_list = text.split()
     data_index = output_list[::-1].index("write")
     output_list = output_list[-data_index:]
-    collected_data = [output_list[i] for i in DATA_INDICES]
 
-    logData(configs, collected_data)
+    try:
+        collected_data = [output_list[i] for i in DATA_INDICES]
+        results = float(collected_data[0]) + float(collected_data[1])
+        logData(configs, collected_data)
+    except Exception: # could be dangerous
+        print("Unable to collect data. Likely caused by exceeding walltime")
+        return 0
 
-    return float(collected_data[0]) + float(collected_data[1])
+    return results
+
 
 def logData(configs, slurm_data):
     log_data = [NUM_NODES,
@@ -110,11 +124,12 @@ def logData(configs, slurm_data):
         writer = csv.writer(logcsv, delimiter=',', quotechar='|', quoting=csv.QUOTE_MINIMAL)
         writer.writerow(log_data)
 
-def simulatedAnneal(alpha, configs):
+
+def simulated_anneal(alpha, configs):
     """
     :param alpha: Learning rate, must be less than 1
     :param configs: Dictionary containing keys num_tasks_per_node, capacity, transfer_size, block_size
-    :return: optimum configurations, associated speed
+    :return: configurations, associated speed when algorithm completes
     """
     temp = 1.0
     num_iterations_stuck = 0
@@ -123,7 +138,8 @@ def simulatedAnneal(alpha, configs):
     while num_iterations_stuck < 100 and temp > 0.001:
         new_config = neighbor(configs)
         new_speed = getSpeed(new_config)
-        if (new_speed > curr_speed) or math.exp((new_speed - curr_speed) / 1000 / temp) > random.random():
+        # dividing by larger number in exponent causes more variation. Room for optimization here
+        if (new_speed > curr_speed) or math.exp((new_speed - curr_speed) / 2000 / temp) > random.random():
             configs = new_config
             curr_speed = new_speed
             num_iterations_stuck = 0
@@ -134,12 +150,10 @@ def simulatedAnneal(alpha, configs):
 
     return curr_speed, configs
 
+
 if __name__ == "__main__":
-    initial_configs = {"num_tasks_per_node" : 8,
-          "capacity" : 12,
-          "transfer_size" : 8,
-          "block_size" : 1024}
-    simulatedAnneal(0.975, initial_configs)
-
-
-
+    initial_configs = {"num_tasks_per_node": 8,
+          "capacity": 12,
+          "transfer_size": 8,
+          "block_size": 1024}
+    simulated_anneal(0.985, initial_configs)

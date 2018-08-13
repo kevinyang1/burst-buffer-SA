@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --job-name ior
+#SBATCH -q debug
+#SBATCH -N {0}
+#SBATCH -n {1}
+#SBATCH --ntasks-per-node={2}
+#SBATCH --constraint={3}
+#DW jobdw type=scratch access_mode=striped capacity={4}
+srun ./ior \
+    -a POSIX \
+    -F \
+    -e \
+    -g \
+    -t {5} \
+    -b {6}  \
+    -o $DW_JOB_STRIPED/IOR_file \
+    -v \
+    -i 2 \
+    -z

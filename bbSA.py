@@ -4,6 +4,7 @@ import math
 import csv
 
 
+USER = "k_yang"
 IOR_PATH = "./ior/src/"
 SBATCH_TEMPLATE_PATH = IOR_PATH + "IORtemplate.txt"
 SBATCH_NEW_SCRIPT_PATH = IOR_PATH + "newIOR.sbatch"
@@ -82,10 +83,10 @@ def getSpeed(configs):
     """
     generateIOR(configs)
     job_number = subprocess.getoutput("sbatch " + SBATCH_NEW_SCRIPT_PATH).split()[3]
-    job_status = subprocess.getoutput("squeue | grep k_yang")
+    job_status = subprocess.getoutput("squeue | grep {}".format(USER))
 
     while job_status:
-        job_status = subprocess.getoutput("squeue | grep k_yang")
+        job_status = subprocess.getoutput("squeue | grep {}".format(USER))
 
     with open("slurm-{0}.out".format(job_number)) as outputfile:
         text = outputfile.read()

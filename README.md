@@ -18,6 +18,7 @@ The code is pretty raw, and using it requires making changes to the code. In bbS
 * alpha: specifies rate at which simulated annealing temperature decays. 
 
 The code also requires IORtemplate.txt to have at least 2 repetitions for each run. This is specified with **-i** flag.
+Files should be placed in same directory as IOR.
   
 ## License
 

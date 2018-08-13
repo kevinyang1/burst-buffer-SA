@@ -7,6 +7,7 @@ The algorithm changes four parameters: number of tasks per node, SSD capacity, t
 ## Configuration
 
 The code is pretty raw, and using it requires making changes to the code. In bbSA.py, there are a couple things that must be configured.
+* USER : specify NERSC user name
 * IOR_PATH : specify the location of your IOR executable
 * NUM_NODES : specify number of nodes
 * HASWELL_KNL : "haswell" for haswell, something else for "knl"
